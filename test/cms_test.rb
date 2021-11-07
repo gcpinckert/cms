@@ -33,4 +33,17 @@ class CMSTest < Minitest::Test
     assert_includes last_response.body, "Edgar Allan Poe"
     assert_includes last_response.body, "His heart which trembles at the beam"
   end
+
+  def test_error_for_nonexistent_file
+    get "/notafile.txt"
+    assert_equal 302, last_response.status
+    
+    get last_response["Location"]
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "notafile.txt does not exist."
+
+    get "/"
+    refute_includes last_response.body, "notafile.txt does not exist."
+  end
 end
