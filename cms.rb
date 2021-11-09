@@ -34,7 +34,7 @@ def get_file_contents(path)
   contents = IO.read(path)
   case File.extname(path)
   when ".md"
-    render_markdown_as_html(contents)
+    erb render_markdown_as_html(contents), layout: :layout
   when ".txt"
     headers["Content-Type"] = "text/plain"
     contents

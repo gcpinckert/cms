@@ -1,0 +1,16 @@
+body {
+  font-family: sans-serif;
+  padding: 25px;
+}
+
+div {
+  padding: 3px;
+}
+
+.error {
+  background-color: orange;
+}
+
+.success {
+  background-color: cyan;
+}
