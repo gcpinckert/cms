@@ -16,17 +16,11 @@ class CMSTest < Minitest::Test
     assert_equal 200, last_response.status
     assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
     assert_includes last_response.body, "history.txt"
-    assert_includes last_response.body, "about.txt"
+    assert_includes last_response.body, "about.md"
     assert_includes last_response.body, "changes.txt"
   end
 
   def test_file_contents
-    get "/about.txt"
-    assert_equal 200, last_response.status
-    assert_equal "text/plain", last_response["Content-Type"]
-    assert_includes last_response.body, "Emily Elizabeth Dickinson"
-    assert_includes last_response.body, "She dropt as softly as a star"
-    
     get "/history.txt"
     assert_equal 200, last_response.status
     assert_equal "text/plain", last_response["Content-Type"]
@@ -45,5 +39,13 @@ class CMSTest < Minitest::Test
 
     get "/"
     refute_includes last_response.body, "notafile.txt does not exist."
+  end
+
+  def test_markdown_file_contents
+    get "/about.md"
+    assert_equal 200, last_response.status
+    assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
+    assert_includes last_response.body, "<h2>By Emily Elizabeth Dickinson</h2>"
+    assert_includes last_response.body, "<p>It&#39;s <em>sorer to believe</em>!</p>\n"
   end
 end
