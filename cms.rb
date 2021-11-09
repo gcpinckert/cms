@@ -8,10 +8,16 @@ configure do
   set :session_secret, 'secret'
 end
 
-root = File.expand_path("..", __FILE__)
+def data_path
+  if ENV["RACK_ENV"] == "test"
+    File.expand_path("../test/data", __FILE__)
+  else
+    File.expand_path("../data", __FILE__)
+  end
+end
 
 get "/" do
-  @files = Dir.children(root + "/data")
+  @files = Dir.children(data_path)
   erb :index, layout: :layout
 end
 
@@ -36,7 +42,7 @@ def get_file_contents(path)
 end
 
 get "/:file_name" do
-  path = root + "/data/" + params[:file_name]
+  path = File.join data_path, params[:file_name]
   error = error_for_file_name(path)
 
   if error
@@ -48,7 +54,7 @@ get "/:file_name" do
 end
 
 get "/:file_name/edit" do
-  path = root + "/data/" + params[:file_name]
+  path = File.join data_path, params[:file_name]
   error = error_for_file_name(path)
   @file_name = params[:file_name]
 
@@ -62,11 +68,9 @@ get "/:file_name/edit" do
 end
 
 post "/:file_name/edit" do
-  path = root + "/data/" + params[:file_name]
+  path = File.join data_path, params[:file_name]
 
-  new_content = params[:file_contents]
-
-  IO.write(path, new_content)
+  IO.write(path, params[:file_contents])
   session[:success] = "#{params[:file_name]} has been updated."
   redirect "/"
 end
