@@ -21,7 +21,7 @@ get "/" do
   erb :index, layout: :layout
 end
 
-def error_for_file_name(path)
+def error_for_file(path)
   "#{File.basename(path)} does not exist." unless File.exist?(path)
 end
 
@@ -41,9 +41,37 @@ def get_file_contents(path)
   end
 end
 
+get "/new" do
+  erb :new, layout: :layout
+end
+
+def error_for_file_name(name)
+  if name.empty?
+    "A name is required."
+  elsif !name.match(/\.(txt|md)/)
+    "A .txt or .md file extension must be provided."
+  end
+end
+
+post "/new" do
+  @file_name = params[:new_file].strip
+  error = error_for_file_name(@file_name)
+
+  if error
+    session[:error] = error
+    status 422
+    erb :new, layout: :layout
+  else
+    path = File.join data_path, @file_name
+    File.new(path, "w+")
+    session[:success] = "#{@file_name} was created."
+    redirect "/"
+  end
+end
+
 get "/:file_name" do
   path = File.join data_path, params[:file_name]
-  error = error_for_file_name(path)
+  error = error_for_file(path)
 
   if error
     session[:error] = error
@@ -55,7 +83,7 @@ end
 
 get "/:file_name/edit" do
   path = File.join data_path, params[:file_name]
-  error = error_for_file_name(path)
+  error = error_for_file(path)
   @file_name = params[:file_name]
 
   if error
