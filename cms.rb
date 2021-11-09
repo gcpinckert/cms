@@ -46,3 +46,27 @@ get "/:file_name" do
     get_file_contents(path)
   end
 end
+
+get "/:file_name/edit" do
+  path = root + "/data/" + params[:file_name]
+  error = error_for_file_name(path)
+  @file_name = params[:file_name]
+
+  if error
+    session[:error] = error
+    redirect "/"
+  else
+    @contents = IO.read(path)
+    erb :edit_contents, layout: :layout
+  end
+end
+
+post "/:file_name/edit" do
+  path = root + "/data/" + params[:file_name]
+
+  new_content = params[:file_contents]
+
+  IO.write(path, new_content)
+  session[:success] = "#{params[:file_name]} has been updated."
+  redirect "/"
+end
