@@ -8,6 +8,7 @@ configure do
   set :session_secret, 'secret'
 end
 
+# Assign path according to environment
 def data_path
   if ENV["RACK_ENV"] == "test"
     File.expand_path("../test/data", __FILE__)
@@ -16,9 +17,35 @@ def data_path
   end
 end
 
+# Display list of documents
 get "/" do
   @files = Dir.children(data_path)
   erb :index, layout: :layout
+end
+
+# Display sign in form
+get "/users/sign_in" do
+  erb :sign_in, layout: :layout
+end
+
+# Check user credentials and sign user in
+post "/users/sign_in" do
+  if params[:user_name] == "admin" && params[:password] == "secret"
+    session[:user_name] = params[:user_name]
+    session[:success] = "Welcome!"
+    redirect "/"
+  else
+    session[:error] = "Invalid Credentials"
+    status 422
+    erb :sign_in, layout: :layout
+  end
+end
+
+# Sign user out
+post "/users/sign_out" do
+  session.delete(:user_name)
+  session[:success] = "You have been signed out."
+  redirect "/"
 end
 
 def error_for_file(path)
@@ -41,6 +68,7 @@ def get_file_contents(path)
   end
 end
 
+# Display new document form
 get "/new" do
   erb :new, layout: :layout
 end
@@ -53,6 +81,7 @@ def error_for_file_name(name)
   end
 end
 
+# Creates new document
 post "/new" do
   @file_name = params[:new_file].strip
   error = error_for_file_name(@file_name)
@@ -69,6 +98,7 @@ post "/new" do
   end
 end
 
+# Display contents of given file
 get "/:file_name" do
   path = File.join data_path, params[:file_name]
   error = error_for_file(path)
@@ -81,6 +111,7 @@ get "/:file_name" do
   end
 end
 
+# Display form for editing contents of given file
 get "/:file_name/edit" do
   path = File.join data_path, params[:file_name]
   error = error_for_file(path)
@@ -95,6 +126,7 @@ get "/:file_name/edit" do
   end
 end
 
+# Write changes to contents of given file
 post "/:file_name/edit" do
   path = File.join data_path, params[:file_name]
 
@@ -103,6 +135,7 @@ post "/:file_name/edit" do
   redirect "/"
 end
 
+# Delete given file from system
 post "/:file_name/delete" do
   path = File.join data_path, params[:file_name]
 
