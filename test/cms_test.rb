@@ -130,4 +130,19 @@ class CMSTest < Minitest::Test
     assert_equal 422, last_response.status
     assert_includes last_response.body, "A .txt or .md file extension must be provided."
   end
+
+  def test_delete_file
+    create_document "test.txt"
+
+    get "/"
+    assert_includes last_response.body, '<form action="/test.txt/delete"'
+    assert_includes last_response.body, '<button type="submit">Delete'
+
+    post"/test.txt/delete"
+    assert_equal 302, last_response.status
+    
+    get last_response["Location"]
+    assert_includes last_response.body, "test.txt was deleted."
+    refute_includes last_response.body, '<a href="/test.txt">test.txt</a>'
+  end
 end
