@@ -26,6 +26,10 @@ class CMSTest < Minitest::Test
     end
   end
 
+  def session
+    last_request.env["rack.session"]
+  end
+
   def test_index
     create_document "about.md"
     create_document "changes.txt"
@@ -51,14 +55,7 @@ class CMSTest < Minitest::Test
   def test_error_for_nonexistent_file
     get "/notafile.txt"
     assert_equal 302, last_response.status
-
-    get last_response["Location"]
-
-    assert_equal 200, last_response.status
-    assert_includes last_response.body, "notafile.txt does not exist."
-
-    get "/"
-    refute_includes last_response.body, "notafile.txt does not exist."
+    assert_equal "notafile.txt does not exist.", session[:error]
   end
 
   def test_markdown_file_contents
@@ -70,7 +67,7 @@ class CMSTest < Minitest::Test
     assert_includes last_response.body, "<h2>This will be a heading</h2>"
   end
 
-  def test_edit_content
+  def test_edit_content_form
     create_document "changes.txt"
 
     get "/changes.txt/edit"
@@ -86,10 +83,7 @@ class CMSTest < Minitest::Test
     post "/changes.txt/edit", file_contents: "new content"
 
     assert_equal 302, last_response.status
-
-    get last_response["Location"]
-
-    assert_includes last_response.body, "changes.txt has been updated."
+    assert_equal "changes.txt has been updated.", session[:success]
 
     get "/changes.txt"
     assert_equal 200, last_response.status
@@ -108,13 +102,10 @@ class CMSTest < Minitest::Test
   def test_new_doc_created
     post "/new", new_file: "test.txt"
     assert_equal 302, last_response.status
-
-    get last_response["Location"]
-    assert_includes last_response.body, "test.txt was created."
+    assert_equal "test.txt was created.", session[:success]
 
     get "/"
     assert_includes last_response.body, "test.txt"
-    refute_includes last_response.body, "test.txt was created."
   end
 
   def test_error_without_filename
@@ -142,9 +133,9 @@ class CMSTest < Minitest::Test
 
     post"/test.txt/delete"
     assert_equal 302, last_response.status
+    assert_equal "test.txt was deleted.", session[:success]
     
-    get last_response["Location"]
-    assert_includes last_response.body, "test.txt was deleted."
+    get "/"
     refute_includes last_response.body, '<a href="/test.txt">test.txt</a>'
   end
 
@@ -159,31 +150,31 @@ class CMSTest < Minitest::Test
   def test_sign_in_success
     post "/users/sign_in", user_name: "admin", password: "secret"
     assert_equal 302, last_response.status
+    assert_equal "admin", session[:user_name]
+    assert_equal "Welcome!", session[:success]
 
     get last_response["Location"]
-    assert_includes last_response.body, "Welcome!"
     assert_includes last_response.body, "Signed in as admin."
     assert_includes last_response.body, '<button type="submit">Sign Out'
-
-    post "/users/sign_out"
-    assert_equal 302, last_response.status
   end
 
   def test_sign_in_error
     post "/users/sign_in", user_name: "bad", password: "wrong"
     assert_equal 422, last_response.status
+    assert_nil session[:username]
     assert_includes last_response.body, "Invalid Credentials"
   end
 
   def test_sign_out
-    post "/users/sign_in", user_name: "admin", password: "secret"
-    assert_equal 302, last_response.status
-    
+    get "/", {}, {"rack.session" => { user_name: "admin" } }
+    assert_equal "admin", session[:user_name]
+
     post "/users/sign_out"
     assert_equal 302, last_response.status
+    assert_nil session[:user_name]
+    assert_equal "You have been signed out.", session[:success]
     
     get last_response["Location"]
-    assert_includes last_response.body, "You have been signed out."
     assert_includes last_response.body, '<button type="submit">Sign In'
   end
 end
