@@ -30,6 +30,10 @@ class CMSTest < Minitest::Test
     last_request.env["rack.session"]
   end
 
+  def admin_session
+    { "rack.session" => { user_name: "admin" } }
+  end
+
   def test_index
     create_document "about.md"
     create_document "changes.txt"
@@ -70,17 +74,25 @@ class CMSTest < Minitest::Test
   def test_edit_content_form
     create_document "changes.txt"
 
-    get "/changes.txt/edit"
+    get "/changes.txt/edit", {}, admin_session
 
     assert_equal 200, last_response.status
     assert_includes last_response.body, "<textarea"
     assert_includes last_response.body, '<input type="submit"'
   end
 
+  def test_redirect_edit_if_not_signed_in
+    create_document "changes.txt"
+
+    get "/changes.txt/edit"
+    assert_equal 302, last_response.status
+    assert_equal "You must be signed in to do that.", session[:error]
+  end
+
   def test_updated_content
     create_document "changes.txt", "old content"
 
-    post "/changes.txt/edit", file_contents: "new content"
+    post "/changes.txt/edit", { file_contents: "new content" }, admin_session
 
     assert_equal 302, last_response.status
     assert_equal "changes.txt has been updated.", session[:success]
@@ -91,16 +103,30 @@ class CMSTest < Minitest::Test
     refute_includes last_response.body, "old content"
   end
 
+  def test_redirect_updating_content_if_not_signed_in
+    create_document "changes.txt", "old content"
+
+    post "/changes.txt/edit", {file_contents: "new content"}
+    assert_equal 302, last_response.status
+    assert_equal "You must be signed in to do that.", session[:error]
+  end
+
   def test_new_doc_form
-    get "/new"
+    get "/new", {}, admin_session
     assert_equal 200, last_response.status
     assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
     assert_includes last_response.body, '<input type="text"'
     assert_includes last_response.body, '<input type="submit"'
   end
 
+  def test_redirect_new_doc_form_if_not_signed_in
+    get "/new"
+    assert_equal 302, last_response.status
+    assert_equal "You must be signed in to do that.", session[:error]
+  end
+
   def test_new_doc_created
-    post "/new", new_file: "test.txt"
+    post "/new", { new_file: "test.txt" }, admin_session
     assert_equal 302, last_response.status
     assert_equal "test.txt was created.", session[:success]
 
@@ -108,18 +134,27 @@ class CMSTest < Minitest::Test
     assert_includes last_response.body, "test.txt"
   end
 
+  def test_redirect_doc_creation_if_not_signed_in
+    post "/new", { new_file: "test.txt" }
+    assert_equal 302, last_response.status
+    assert_equal "You must be signed in to do that.", session[:error]
+
+    get last_response["Location"]
+    refute_includes last_response.body, "test.txt"
+  end
+
   def test_error_without_filename
-    post "/new", new_file: ""
+    post "/new", { new_file: "" }, admin_session
     assert_equal 422, last_response.status
     assert_includes last_response.body, "A name is required."
   end
 
   def test_error_without_file_ext
-    post "/new", new_file: "test"
+    post "/new", { new_file: "test" }, admin_session
     assert_equal 422, last_response.status
     assert_includes last_response.body, "A .txt or .md file extension must be provided."
 
-    post "/new", new_file: "test.rb"
+    post "/new", { new_file: "test.rb" }, admin_session
     assert_equal 422, last_response.status
     assert_includes last_response.body, "A .txt or .md file extension must be provided."
   end
@@ -131,12 +166,23 @@ class CMSTest < Minitest::Test
     assert_includes last_response.body, 'action="/test.txt/delete"'
     assert_includes last_response.body, '<button type="submit">Delete'
 
-    post"/test.txt/delete"
+    post"/test.txt/delete", {}, admin_session
     assert_equal 302, last_response.status
     assert_equal "test.txt was deleted.", session[:success]
     
     get "/"
     refute_includes last_response.body, '<a href="/test.txt">test.txt</a>'
+  end
+
+  def test_redirected_delete_if_not_signed_in
+    create_document "test.txt"
+
+    post "/text.txt/delete"
+    assert_equal 302, last_response.status
+    assert_equal "You must be signed in to do that.", session[:error]
+
+    get last_response["Location"]
+    assert_includes last_response.body, "test.txt"
   end
 
   def test_sign_in_form

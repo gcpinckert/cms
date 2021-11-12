@@ -17,6 +17,14 @@ def data_path
   end
 end
 
+# Check to see if user is signed in and redirect if not
+def redirect_if_not_authorized
+  unless session[:user_name]
+    session[:error] = "You must be signed in to do that."
+    redirect "/"
+  end
+end
+
 # Display list of documents
 get "/" do
   @files = Dir.children(data_path)
@@ -70,6 +78,7 @@ end
 
 # Display new document form
 get "/new" do
+  redirect_if_not_authorized
   erb :new, layout: :layout
 end
 
@@ -83,6 +92,7 @@ end
 
 # Creates new document
 post "/new" do
+  redirect_if_not_authorized
   @file_name = params[:new_file].strip
   error = error_for_file_name(@file_name)
 
@@ -113,6 +123,7 @@ end
 
 # Display form for editing contents of given file
 get "/:file_name/edit" do
+  redirect_if_not_authorized
   path = File.join data_path, params[:file_name]
   error = error_for_file(path)
   @file_name = params[:file_name]
@@ -128,6 +139,7 @@ end
 
 # Write changes to contents of given file
 post "/:file_name/edit" do
+  redirect_if_not_authorized
   path = File.join data_path, params[:file_name]
 
   IO.write(path, params[:file_contents])
@@ -137,6 +149,7 @@ end
 
 # Delete given file from system
 post "/:file_name/delete" do
+  redirect_if_not_authorized
   path = File.join data_path, params[:file_name]
 
   File.delete(path)
