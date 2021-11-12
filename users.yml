@@ -1,4 +1,4 @@
-adam: apple
-bob: banana
-chris: cherry
-daniel: durian
+adam: $2a$12$H6hsZkOoArihr7VNz7ndfuAS50IXjuiHCCJOrfrrjgkp.J41jznAa
+bob: $2a$12$wH2y/1eB9d6uChX1KxFvT.M6lH/7P7HhgpDQ8USByT4XoiLmUkH3W
+chris: $2a$12$EAvRw3wtMf0IB5swd1/CDuWyoLI.OochoKRAeZ9tEQX2hPgvA./y2
+daniel: $2a$12$p22mNCgYuD.B812dyNGxX.EnxwbXBtKPRl.96Lkn1PzAvdwzwado.

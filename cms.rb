@@ -3,6 +3,7 @@ require "sinatra/reloader" if development?
 require "tilt/erubis"
 require "redcarpet"
 require "yaml"
+require "bcrypt"
 
 configure do
   enable :sessions
@@ -49,7 +50,7 @@ end
 # Validate user credentials
 def valid_user?(user_name, password)
   users = load_users
-  users.key?(user_name) && users[user_name] == password
+  users.key?(user_name) && BCrypt::Password.new(users[user_name]) == password
 end
 
 # Check user credentials and sign user in
