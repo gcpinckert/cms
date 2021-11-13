@@ -45,6 +45,7 @@ class CMSTest < Minitest::Test
     assert_includes last_response.body, "changes.txt"
     assert_includes last_response.body, '<a href="/new">New Document</a>'
     assert_includes last_response.body, '<button type="submit">Sign In'
+    assert_includes last_response.body, '<button type="submit">Sign Up'
   end
 
   def test_file_contents
@@ -212,7 +213,7 @@ class CMSTest < Minitest::Test
   end
 
   def test_sign_out
-    get "/", {}, {"rack.session" => { user_name: "admin" } }
+    get "/", {}, admin_session
     assert_equal "admin", session[:user_name]
 
     post "/users/sign_out"
@@ -222,5 +223,99 @@ class CMSTest < Minitest::Test
     
     get last_response["Location"]
     assert_includes last_response.body, '<button type="submit">Sign In'
+  end
+
+  def test_duplicate_file
+    create_document "test.txt"
+
+    get "/"
+    assert_includes last_response.body, 'action="/test.txt/duplicate"'
+    assert_includes last_response.body, '<button type="submit">Duplicate'
+
+    post"/test.txt/duplicate", {}, admin_session
+    assert_equal 302, last_response.status
+    assert_equal "test_1.txt was created.", session[:success]
+    
+    get "/"
+    assert_includes last_response.body, '<a href="/test_1.txt">test_1.txt</a>'
+  end
+
+  def test_duplicate_duplicate_file
+    create_document "test_1.txt"
+
+    post"/test_1.txt/duplicate", {}, admin_session
+    assert_equal 302, last_response.status
+    assert_equal "test_2.txt was created.", session[:success]
+    
+    get "/"
+    assert_includes last_response.body, '<a href="/test_2.txt">test_2.txt</a>'
+
+    create_document "test_999.txt"
+
+    post"/test_999.txt/duplicate", {}, admin_session
+    assert_equal 302, last_response.status
+    assert_equal "test_1000.txt was created.", session[:success]
+    
+    get "/"
+    assert_includes last_response.body, '<a href="/test_1000.txt">test_1000.txt</a>'
+  end
+
+  def test_redirect_duplicate_if_not_signed_in
+    create_document "test.txt"
+
+    post "/text.txt/duplicate"
+    assert_equal 302, last_response.status
+    assert_equal "You must be signed in to do that.", session[:error]
+
+    get last_response["Location"]
+    refute_includes last_response.body, "test_1.txt"
+  end
+
+  def test_sign_up_form
+    get "/users/sign_up"
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, '<label for="user_name"'
+    assert_includes last_response.body, '<label for="password"'
+    assert_includes last_response.body, 'button type="submit">Sign Up'
+  end
+
+  def test_sign_up_form_errors
+    post "/users/sign_up", user_name: ''
+    assert_equal 422, last_response.status
+    assert_includes last_response.body, "You must enter a username."
+
+    post "/users/sign_up", user_name: '     '
+    assert_equal 422, last_response.status
+    assert_includes last_response.body, "You must enter a username."
+
+    post "/users/sign_up", user_name: "admin"
+    assert_equal 422, last_response.status
+    assert_includes last_response.body, "That username is already taken." \
+                                        " Please enter a different username."
+    
+    post "/users/sign_up", user_name: "new_user", password: ""
+    assert_equal 422, last_response.status
+    assert_includes last_response.body, "The password must be at" \
+                                        " least 4 characters long."
+    
+    post "/users/sign_up", user_name: "new_user", password: "123"
+    assert_equal 422, last_response.status
+    assert_includes last_response.body, "The password must be at" \
+                                        " least 4 characters long."
+  end
+
+  def test_new_user_sign_up
+    post "/users/sign_up", user_name: "test", password: "test"
+    assert_equal 302, last_response.status
+    assert_equal "You're signed up! Sign in to get started.", session[:success]
+
+    post "/users/sign_in", user_name: "test", password: "test"
+    assert_equal 302, last_response.status
+    assert_equal "test", session[:user_name]
+    assert_equal "Welcome!", session[:success]
+
+    File.open(users_path, 'w') do |file|
+      file.write("admin: '$2a$12$qlm.vGkTFLzKRxyb69zrm.mU/ypTzuTBAttdL/5dsmFNNN/OOqBRi'\n")
+    end
   end
 end

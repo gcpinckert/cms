@@ -19,12 +19,17 @@ def data_path
   end
 end
 
-def load_users
-  users_path = if ENV["RACK_ENV"] == "test"
+# Assign the user path according to environment
+def users_path
+  if ENV["RACK_ENV"] == "test"
     File.expand_path("../test/users.yml", __FILE__)
   else
     File.expand_path("../users.yml", __FILE__)
   end
+end
+
+# Load the correct user list
+def load_users
   YAML.load_file(users_path)
 end
 
@@ -71,6 +76,43 @@ post "/users/sign_out" do
   session.delete(:user_name)
   session[:success] = "You have been signed out."
   redirect "/"
+end
+
+def error_for_new_credentials(user_name, password)
+  users = load_users
+  if user_name.empty?
+    "You must enter a username."
+  elsif users.key?(user_name)
+    "That username is already taken. Please enter a different username."
+  elsif password.size < 4
+    "The password must be at least 4 characters long."
+  end
+end
+
+# Display sign up new user form
+get "/users/sign_up" do
+  erb :sign_up, layout: :layout
+end
+
+# Create a new user
+post "/users/sign_up" do
+  user_name = params[:user_name].strip
+  error = error_for_new_credentials(user_name, params[:password])
+
+  if error
+    session[:error] = error
+    status 422
+    erb :sign_up, layout: :layout
+  else
+    hashed_password = BCrypt::Password.create(params[:password])
+    users = load_users
+    users[user_name] = hashed_password
+    File.open(users_path, 'w') do |file|
+      file.write(users.to_yaml)
+    end
+    session[:success] = "You're signed up! Sign in to get started."
+    redirect "/users/sign_in"
+  end
 end
 
 def error_for_file(path)
@@ -171,5 +213,29 @@ post "/:file_name/delete" do
 
   File.delete(path)
   session[:success] = "#{params[:file_name]} was deleted."
+  redirect "/"
+end
+
+def new_file_name(old_file_name)
+  base, ext = old_file_name.split(".")
+  if base.match(/_\d+/)
+    name, num = base.split("_")
+    base = "#{name}_#{num.to_i + 1}"
+  else
+    base += "_1"
+  end
+
+  "#{base}.#{ext}"
+end
+
+# Duplicate given file
+post "/:file_name/duplicate" do
+  redirect_if_not_authorized
+
+  new_file = new_file_name(params[:file_name])
+  path = File.join data_path, new_file
+
+  File.new(path, "w+")
+  session[:success] = "#{new_file} was created."
   redirect "/"
 end
